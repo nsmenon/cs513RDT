@@ -14,36 +14,34 @@ public class AppLayerMenu {
 
 		Scanner scanInputValues = new Scanner(System.in);
 		System.out.println("RDP Portal Initiation");
-
-		// System.out.println("Enter the Maximum Segement size. Max allowed value is
-		// 10");
-		// Integer mssSize = scanInputValues.nextInt();
-
-		// System.out.println("Probability of loss during packet sending. Value ranges
-		// from (0.1 - 1)");
-		// Double probability = scanInputValues.nextDouble();
-
-		System.out.println("Window size - Number of packets sent without acking");
-		Integer windowSize = scanInputValues.nextInt();
-
-		// System.out.println("Time (ms) before Resending all the non-acked packets");
-		// Integer timeout = scanInputValues.nextInt();
-
-		// AppLayerObject appObject = new AppLayerObject(mssSize, probability,
-		// windowSize, timeout);
-		AppLayerObject appObject = new AppLayerObject(null, null, windowSize, null);
+		
+		AppLayerObject appObject = null;
 		boolean flag = true;
 		while (flag) {
+			System.out.println("Protocol to used. [0] GBN, [1] SR");
+			int protMode = scanInputValues.nextInt();
+			
 			System.out.println("Are you going to send or receive file now. Press 1 to send or 0 to receive");
-			Integer mode = scanInputValues.nextInt();
+			int mode = scanInputValues.nextInt();
+			
+			System.out.println("Probability of loss during packet sending.Range - [0..100]%");
+			int packetLossProbability = scanInputValues.nextInt();
+
+			System.out.println("Probability of corruption for packet.Range - [0..100]%");
+			int packetcorruptionProbability = scanInputValues.nextInt();
+			
 			switch (mode) {
 			case 1:
 				flag = false;
+				System.out.println("Window size - Number of packets that can be sent without acknowledgemnet");
+				Integer windowSize = scanInputValues.nextInt();
+				appObject = new AppLayerObject(packetcorruptionProbability, packetLossProbability, windowSize, protMode);
 				sendMode(appObject);
 				break;
 
 			case 0:
 				flag = false;
+				appObject = new AppLayerObject(packetcorruptionProbability, packetLossProbability,0, protMode);
 				receiveMode(appObject);
 				break;
 			default:
@@ -58,6 +56,7 @@ public class AppLayerMenu {
 			TransportLayerNew tpLayer = new TransportLayerNew(appObject, PORT_TWO, PORT_ONE);
 			FileInputStream fpStream = new FileInputStream("testfile");
 			tpLayer.dataLinkSend(fpStream);
+			fpStream.close();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

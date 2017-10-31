@@ -1,47 +1,48 @@
 package application;
+
 public class AppLayerObject {
-	private Integer maxSegmentSize = 4;
-	private Double failureProbability = 0.1;
-	private Integer WINDOW_SIZE = 2;
-	private Integer TIMER = 30;
-
-	public Integer getMaxSegmentSize() {
-		return maxSegmentSize;
+	private int packetCorruptionProbability;
+	private int packetDropProbability;
+	private int protocolMode;
+	
+	public AppLayerObject(int packetCorruptionProbability, int packetDropProbability, int windowSize ,int protocolMode) {
+		this.packetCorruptionProbability = packetCorruptionProbability;
+		this.packetDropProbability = packetDropProbability;
+		this.protocolMode = protocolMode;
+		this.windowSize = windowSize;
 	}
 
-	public AppLayerObject(Integer maxSegmentSize, Double failureProbability, Integer wINDOW_SIZE, Integer tIMER) {
-		this.maxSegmentSize = maxSegmentSize;
-		this.failureProbability = failureProbability;
-		WINDOW_SIZE = wINDOW_SIZE;
-		TIMER = tIMER;
+	private int windowSize;
+
+	public int getPacketDropProbability() {
+		return packetDropProbability;
 	}
 
-	public void setMaxSegmentSize(Integer maxSegmentSize) {
-		this.maxSegmentSize = maxSegmentSize;
+	public void setPacketDropProbability(int packetDropProbability) {
+		this.packetDropProbability = packetDropProbability;
 	}
 
-	public Double getFailureProbability() {
-		return failureProbability;
+	public int getProtocolMode() {
+		return protocolMode;
 	}
 
-	public void setFailureProbability(Double failureProbability) {
-		this.failureProbability = failureProbability;
+	public void setProtocolMode(int protocolMode) {
+		this.protocolMode = protocolMode;
 	}
 
-	public Integer getWINDOW_SIZE() {
-		return WINDOW_SIZE;
+	public int getPacketCorruptionProbability() {
+		return packetCorruptionProbability;
 	}
 
-	public void setWINDOW_SIZE(Integer wINDOW_SIZE) {
-		WINDOW_SIZE = wINDOW_SIZE;
+	public void setPacketCorruptionProbability(int packetCorruptionProbability) {
+		this.packetCorruptionProbability = packetCorruptionProbability;
 	}
 
-	public Integer getTIMER() {
-		return TIMER;
+	public int getWindowSize() {
+		return windowSize;
 	}
 
-	public void setTIMER(Integer tIMER) {
-		TIMER = tIMER;
+	public void setWindowSize(int windowSize) {
+		this.windowSize = windowSize;
 	}
-
 }

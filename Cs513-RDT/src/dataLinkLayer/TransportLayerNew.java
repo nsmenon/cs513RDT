@@ -1,3 +1,4 @@
+
 package dataLinkLayer;
 
 import java.io.FileInputStream;
@@ -6,8 +7,6 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.zip.CRC32;
-import java.util.zip.Checksum;
 
 import application.AppLayerObject;
 import network.NetworkLayerNew;
@@ -15,14 +14,14 @@ import packet.PacketData;
 
 
 public class TransportLayerNew {
-	private static NetworkLayerNew m_networkLayer = null;
+	private NetworkLayerNew m_networkLayer = null;
 	private static int base = 0;
-	private static int nextSeqNumSender = 0;
-	private static int nextSeqNumReceiver = 0;
+	private  int nextSeqNumSender = 0;
+	private  int nextSeqNumReceiver = 0;
 
-	private static int windowSize = 10;
+	private int windowSize = 10;
 	public final static int TIME_OUT = 5000;
-
+	Thread sendPacketsThread; 
 	// use a list to cache the packets sent but unACKed
 	private static List<PacketData> cache = new LinkedList<PacketData>();
 
@@ -32,9 +31,9 @@ public class TransportLayerNew {
 	private static FileOutputStream seqnum, ack, arrival;
 
 	public TransportLayerNew(AppLayerObject appObject, int senderPort, int receiverPort) {
-		m_networkLayer = new NetworkLayerNew(senderPort, receiverPort);
-		m_networkLayer.setTransportLayer(this);
-		 windowSize = appObject.getWINDOW_SIZE();
+		this.m_networkLayer = new NetworkLayerNew(appObject,senderPort, receiverPort);
+		this.m_networkLayer.setTransportLayer(this);
+		this.windowSize = appObject.getWindowSize();
 	}
 
 	public void dataLinkSend(final FileInputStream tobeSentStream) throws Exception {
@@ -61,7 +60,7 @@ public class TransportLayerNew {
 					System.out.println("Invalid packet length for data received!!!");
 					break;
 				} else {
-					long checkSumFromreceivedData = calculateCheckSum(packetReceived.getData());
+					int checkSumFromreceivedData = getCheckSum(packetReceived.getSeqNum(), packetReceived.getDataAsString());
 					if (packetReceived.getSeqNum() == nextSeqNumReceiver && packetReceived.getCheckSum() == checkSumFromreceivedData) {
 						writeToFile(packetReceived, fos);
 						System.out.println("Debug:ACK sent for Packet with Seq [" +packetReceived.getSeqNum() + "]");
@@ -100,8 +99,8 @@ public class TransportLayerNew {
 		}
 	}
 
-	private static void threadsForSender(final FileInputStream fis) throws InterruptedException {
-		Thread sendPacketsThread = new Thread(new Runnable() {
+	private void threadsForSender(final FileInputStream fis) throws InterruptedException {
+		sendPacketsThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
@@ -111,7 +110,6 @@ public class TransportLayerNew {
 				}
 			}
 		});
-
 		// thread used to receive ACKs sent by receiver and process them
 		Thread monitorACKsThread = new Thread(new Runnable() {
 			@Override
@@ -134,7 +132,7 @@ public class TransportLayerNew {
 
 	}
 
-	public static PacketData receiveFromNetworkLayer() throws SocketTimeoutException,Exception {
+	public PacketData receiveFromNetworkLayer() throws SocketTimeoutException,Exception {
 		byte[] receivedData = m_networkLayer.receive();
 		if (null == receivedData)
 			return null;
@@ -142,17 +140,17 @@ public class TransportLayerNew {
 		return ACKPackets;
 	}
 
-	public static void sendToNetworkLayer(PacketData packet, boolean noLoss) {
+	public void sendToNetworkLayer(PacketData packet, boolean noLoss) {
 		m_networkLayer.send(packet.getUDPdata(),noLoss);
 	}
 
-	private static void sendPackets(FileInputStream fis, int i) {
+	private void sendPackets(FileInputStream fis, int i) {
 		try {
-
 			PacketData p;
-			byte[] buffer = new byte[500];
+			byte[] buffer = new byte[496];
 
 			while (true) {
+				Thread.sleep(0);
 				if (nextSeqNumSender >= base + windowSize)
 					continue;
 				// here should be mutex
@@ -161,7 +159,7 @@ public class TransportLayerNew {
 					if (ret < 0) {
 						p = PacketData.createEOT(nextSeqNumSender);
 						sendToNetworkLayer(p,true);
-						System.out.println("Sending Complete. Sending window closed " + p.getSeqNum());
+						System.out.println("Last Packet in the window created " + p.getSeqNum());
 						cache.add(p);
 						seqnum.write((Integer.toString(nextSeqNumSender) + '\n').getBytes());
 						fis.close();
@@ -182,19 +180,15 @@ public class TransportLayerNew {
 				System.out.println("Error ocuured while sending packet");
 		}
 	}
-	
-	private static long calculateCheckSum(byte bytes[]) {
-		Checksum checksum = new CRC32();
-		checksum.update(bytes, 0, bytes.length);
-		return checksum.getValue();
-	}
 
- private static void monitorACKs() throws Exception {
-		while (true) {
+
+ private void monitorACKs() throws Exception {	
+	 while (true) {
 			try {
 				m_networkLayer.setSocketTimeoutForPacket();
 				PacketData ACKPackets = receiveFromNetworkLayer();
 				if (ACKPackets.getType() == 2) {
+					System.out.println("Ack for Last Packet with seq [" + ACKPackets.getSeqNum() + "] received. The current transaction is now complete");
 					ack.write((Integer.toString(ACKPackets.getSeqNum()) + '\n').getBytes());
 					break;
 				}
@@ -204,7 +198,8 @@ public class TransportLayerNew {
 						ack.write((Integer.toString(ACKPackets.getSeqNum()) + '\n').getBytes());
 						base = base + diff; // update the base
 						for (int i = 0; i < diff; i++) {
-							System.out.println("Removed Packet with seq [" + cache.get(i).getSeqNum() + " ] from senders queue");
+							System.out.println("Ack for Packet with seq [" + ACKPackets.getSeqNum() + "] received.");
+							System.out.println("Removed Packet with seq [" + cache.get(i).getSeqNum() + "] from senders queue");
 							cache.remove(i);
 							if (cache.isEmpty()) {
 								break;
@@ -224,6 +219,20 @@ public class TransportLayerNew {
 
 		}
 	}
+ 
+	public static int getCheckSum(int seqNumber, String payload) {
+		return seqNumber + getNumber(payload);
+	}
+
+	private static int getNumber(String message) {
+		int size = message.length();
+		int sum = 0;
+		for (int i = 0; i < size; i++) {
+			Character c = message.charAt(i);
+			sum += Character.getNumericValue(c);
+		}
+		return sum;
+	}
 
 	// Send EOT packet to NetworkLayer
 	private void sendEOT(int seqNum) throws Exception {
@@ -234,7 +243,7 @@ public class TransportLayerNew {
 	// send the ACKs packet to NetworkLayer
 	private void sendACK(int seqNum) throws Exception {
 		PacketData ack = PacketData.createACK(seqNum);
-		sendToNetworkLayer(ack, true);
+		sendToNetworkLayer(ack, false);
 		System.out.println("Sending Ack for Packet with Seq [" + seqNum + "]");
 	}
 
