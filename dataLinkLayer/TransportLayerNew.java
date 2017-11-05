@@ -46,6 +46,7 @@ public class TransportLayerNew {
     static int startWindowReceiver;
     static int numberOfTimeouts;
     static int totalPacketsSent;
+    static int corruptAcks;
     static double totalBytesSent;
     int noDuplicatePackets;
     byte[][] segmentedFile;
@@ -161,12 +162,15 @@ public class TransportLayerNew {
 						segmentedFile.add(pkt.getData());
 					}else {
 						noDuplicatePackets++;
+						continue;
 					}
 		               ackPacket(packetSeqNum);
 		               sendAcknowledgement();
 		               adjustWindow(packetSeqNum);
+		               System.out.println("Debug:ACK sent for Packet with Seq [" +packetSeqNum + "] Receiver Window - "+windowReceiver);
 		            }
 		            else{
+		            	System.out.println("Packet with Sequence Number "+pkt.getSeqNum()+" is corrupt. Do nothing wait for timeout");
 		               packetsDamaged++;
 		            }
 		         }
@@ -355,9 +359,12 @@ public class TransportLayerNew {
 	}
 
 	private void monitorACKsSelectiveRepeat() throws Exception {
+		corruptAcks = 0;
 		while (true) {
 			PacketData ACKPackets = receiveFromNetworkLayer();
 			ackPackets(ACKPackets);
+			System.out.println("Ack for Packet with seq [" + ACKPackets.getSeqNum() + "] received.");
+			System.out.println("Removed Packet with seq [" + ACKPackets.getSeqNum() + "] from senders window");
 			int windowMoved = adjustWindow();
 			// send packets that are now in window
 			for (int i = windowMoved; i > 0; i--) {
@@ -368,10 +375,13 @@ public class TransportLayerNew {
 				nextSeqNumSender++;
 				PacketData p = PacketData.createEOT(nextSeqNumSender);
 				sendToNetworkLayer(p, true);
+				System.out.println("Last Packet in the window sent " + p.getSeqNum());
+				
 				System.out.println("TOTAL # OF PACKETS SENT: " + totalPacketsSent);
 				System.out.println("TOTAL # OF BYTES SENT: " + totalBytesSent);
 		        System.out.println("TOTAL # OF PACKET RETRANSIMISSIONS: "+numberOfTimeouts);
 		        System.out.println("TOTAL # OF PACKETS DROPPED: " + m_networkLayer.getNumberPacketDrops());
+		        System.out.println("TOTAL # OF CORRUPT ACKS RECEIVED: " + corruptAcks);
 				break;
 			}
 
@@ -381,6 +391,7 @@ public class TransportLayerNew {
 	private static void ackPackets(PacketData pkt){	
         int seq = pkt.getSeqNum();
         String packetString = new String(pkt.getData());
+        if(packetString.contains("Window")) {
         int index = packetString.indexOf("Window: ")+("Window: ".length());
         for(int i = seq; i < seq+WINDOW_SIZE; i++){
            int ack = Integer.parseInt(packetString.substring(index, index+1).trim());
@@ -388,6 +399,8 @@ public class TransportLayerNew {
               windowSender[i] = ACK;
            }
            index++;
+        }}else {
+        	corruptAcks++;
         }
      }
      
@@ -543,6 +556,7 @@ public class TransportLayerNew {
            //if packet has not been ACKed
            if(windowSender[seq] == 0){
               numberOfTimeouts++;
+              System.out.println("Ack for Packet with Seq [" + seq + "] timed out. Resending packet");
               try{
                  sendPacket(seq, message);
               }
