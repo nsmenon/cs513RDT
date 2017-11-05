@@ -1,3 +1,4 @@
+
 package packet;
 
 // common packet class used by both SENDER and RECEIVER
@@ -15,6 +16,7 @@ public class PacketData {
 	private int seqnum;
 	private String data;
 	private int checkSum;
+	private boolean ack;
 	
 	//////////////////////// CONSTRUCTORS //////////////////////////////////////////
 	
@@ -31,12 +33,22 @@ public class PacketData {
 	}
 	
 	// special packet constructors to be used in place of hidden constructor
-	public static PacketData createACK(int SeqNum) throws Exception {
-		return new PacketData(0, SeqNum, new String(),0);
+	public static PacketData createACK(int SeqNum, int protocol) throws Exception {
+		if (protocol == 0) {
+			return new PacketData(0, SeqNum, new String(), 0);
+		}else {
+			String ack = ("Seq: " + SeqNum + "  Window: ");
+			PacketData pdData = new PacketData(0, SeqNum, ack, 0);
+			return pdData;
+		}
+		
 	}
 	
 	public static PacketData createPacket(int SeqNum, String data) throws Exception {
 		return new PacketData(1, SeqNum, data,getCheckSum(SeqNum,data));
+	}
+	public static PacketData createCorruptPacket(int SeqNum, String data) throws Exception {
+		return new PacketData(3, SeqNum, data,getCheckSum(SeqNum,data));
 	}
 	
 	public static PacketData createEOT(int SeqNum) throws Exception {
@@ -60,6 +72,11 @@ public class PacketData {
 	public byte[] getData() {
 		return data.getBytes();
 	}
+	
+	public void setData(String data) {
+		this.data = data;
+	}
+
 	public String getDataAsString() {
 		return data;
 	}
@@ -92,7 +109,8 @@ public class PacketData {
 		int length = buffer.getInt();
 		byte data[] = new byte[length];
 		buffer.get(data, 0, length);
-		return new PacketData(type, seqnum, new String(data),checkSum);
+		String dataString = new String(data);
+		return new PacketData(type, seqnum, dataString,checkSum);
 	}
 	
 	public static int getCheckSum(int seqNumber,String payload) {
@@ -108,4 +126,13 @@ public class PacketData {
 		}
 		return sum;
 	}
+
+	public boolean isAck() {
+		return ack;
+	}
+
+	public void setAck(boolean ack) {
+		this.ack = ack;
+	}
+	
 }

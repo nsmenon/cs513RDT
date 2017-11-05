@@ -9,6 +9,7 @@ import java.util.Random;
 
 import application.AppLayerObject;
 import dataLinkLayer.TransportLayerNew;
+import packet.PacketData;
 
 public class NetworkLayerNew {
 	
@@ -20,6 +21,7 @@ public class NetworkLayerNew {
 	private byte[] packetBuffer = new byte[1024];// data array used to store the UDP data of the received packets.
 	private int packetCorruptionProbability;
 	private int packetDropProbability;
+	private int numberPacketDrops = 0;
 	
 	public NetworkLayerNew(AppLayerObject appObject,int localport, int remoteport) {
 		m_localport = localport;
@@ -42,25 +44,42 @@ public class NetworkLayerNew {
 		m_socket.setSoTimeout(TransportLayerNew.TIME_OUT);
 	}
 	
-	public void send(byte[] payload, boolean noLoss) {
+	public void send(PacketData packet, boolean noLoss){
 		if (!noLoss) {
 			// simulate random loss of packet and packet corruption
 			Random rand = new Random();
 			int randnumForCorruption = rand.nextInt(100); // range 0-10
 			int randnumForPacketDrop = rand.nextInt(100); // range 0-10
 			if (randnumForCorruption < packetCorruptionProbability) {
-				payload = ("ASDFR").getBytes();
+				try {
+					PacketData pkt = PacketData.createCorruptPacket(packet.getSeqNum(), "ASFGGHHJBNHJ");
+					DatagramPacket p = new DatagramPacket(pkt.getUDPdata(), pkt.getUDPdata().length, m_IPAddress, m_remoteport);
+					m_socket.send(p);
+					return;
+				} catch (Exception e) {
+					System.out.println("Error sending packet: " + e);
+				}
 			}
 			if (randnumForPacketDrop < packetDropProbability) {
+				System.out.println("Packet Dropped "+numberPacketDrops);
+				numberPacketDrops++;
 				return;
 			}
 		}
 		try {
-			DatagramPacket p = new DatagramPacket(payload, payload.length, m_IPAddress, m_remoteport);
+			DatagramPacket p = new DatagramPacket(packet.getUDPdata(), packet.getUDPdata().length, m_IPAddress, m_remoteport);
 			m_socket.send(p);
 		} catch (Exception e) {
 			System.out.println("Error sending packet: " + e);
 		}
+	}
+
+	public int getNumberPacketDrops() {
+		return numberPacketDrops;
+	}
+
+	public void setNumberPacketDrops(int numberPacketDrops) {
+		this.numberPacketDrops = numberPacketDrops;
 	}
 
 	// Interface provided to the data link layer to pick
