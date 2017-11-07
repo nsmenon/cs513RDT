@@ -15,3 +15,6 @@
 12) Enter the filename on the send window terminal
 13) Repeat  - 10 and 11 on the other terminal
 14) Once the data transfer is completed, you can repeat the same steps for the other protocol
+
+
+Please Note: The Acknowledgement loss and Ackowledgment corruption is not implemented for SR protocol.
