@@ -14,52 +14,61 @@ public class AppLayerMenu {
 
 		Scanner scanInputValues = new Scanner(System.in);
 		System.out.println("RDP Portal Initiation");
-		
+
 		AppLayerObject appObject = null;
 		boolean flag = true;
 		while (flag) {
 			System.out.println("Protocol to used. [0] GBN, [1] SR");
 			int protMode = scanInputValues.nextInt();
-			
+
 			System.out.println("Are you going to send or receive file now. Press 1 to send or 0 to receive");
 			int mode = scanInputValues.nextInt();
+			int packetLossProbability = 0;
+			int packetcorruptionProbability = 0;
 			
-			System.out.println("Window size - Number of packets that can be sent without acknowledgemnet");
-			Integer windowSize = scanInputValues.nextInt();
 			
+			if(!(protMode == 1 && mode == 0)) {
 			System.out.println("Probability of loss during packet sending.Range - [0..100]%");
-			int packetLossProbability = scanInputValues.nextInt();
+			 packetLossProbability = scanInputValues.nextInt();
 
 			System.out.println("Probability of corruption for packet.Range - [0..100]%");
-			int packetcorruptionProbability = scanInputValues.nextInt();
+			packetcorruptionProbability = scanInputValues.nextInt();
 			
+			}else {
+				packetLossProbability =  0;
+				packetcorruptionProbability = 0;
+			}
+
 			switch (mode) {
 			case 1:
-				flag = false;
-				appObject = new AppLayerObject(packetcorruptionProbability, packetLossProbability, windowSize, protMode);
+				appObject = new AppLayerObject(packetcorruptionProbability, packetLossProbability,protMode);
 				sendMode(appObject);
+				System.out.println("Sending Complete...");
 				break;
-
 			case 0:
-				flag = false;
-				appObject = new AppLayerObject(packetcorruptionProbability, packetLossProbability,0, protMode);
+				appObject = new AppLayerObject(packetcorruptionProbability, packetLossProbability,protMode);
 				receiveMode(appObject);
+				System.out.println("File received successfully...");
 				break;
 			default:
 				break;
+
 			}
 		}
 
+		
 	}
 
 	private static void sendMode(AppLayerObject appObject) {
 		try {
+			Scanner scanInputValues = new Scanner(System.in);
+			System.out.println("Enter the name of file you wish to send");
+			String fileName = scanInputValues.next();
 			TransportLayerNew tpLayer = new TransportLayerNew(appObject, PORT_TWO, PORT_ONE);
-			FileInputStream fpStream = new FileInputStream("testfile");
+			FileInputStream fpStream = new FileInputStream(fileName);
 			tpLayer.dataLinkSend(fpStream, appObject.getProtocolMode());
 			fpStream.close();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -68,11 +77,10 @@ public class AppLayerMenu {
 	private static void receiveMode(AppLayerObject appObject) {
 		try {
 			TransportLayerNew tpLayer = new TransportLayerNew(appObject, PORT_ONE, PORT_TWO);
-			FileOutputStream fos = new FileOutputStream("output.txt");
-			tpLayer.dataLinkReceive(fos,appObject.getProtocolMode());
+			FileOutputStream fos = new FileOutputStream("output");
+			tpLayer.dataLinkReceive(fos, appObject.getProtocolMode());
 			fos.close();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

@@ -24,7 +24,7 @@ public class TransportLayerNew {
 	
 	private  int nextSeqNumSender = 0;
 	private  int nextSeqNumReceiver = 0;
-	private  int windowSize = 10;
+	private  int windowSize = 8;
 	
 	public final static int TIME_OUT = 5000;
 	Thread sendPacketsThread,monitorACKsThread; 
@@ -34,8 +34,6 @@ public class TransportLayerNew {
 	
 	// lock used to keep mutual exclusive
 	private static Object lock = new Object();
-
-	final static int WINDOW_SIZE = 8;
     final static int ACK = 1;
     final static int NAK = 0;
     
@@ -44,10 +42,10 @@ public class TransportLayerNew {
     static int startWindowSender;
     static int[] windowReceiver;
     static int startWindowReceiver;
-    static int numberOfTimeouts;
-    static int totalPacketsSent;
-    static int corruptAcks;
-    static double totalBytesSent;
+    int numberOfTimeouts;
+    int totalPacketsSent;
+    int corruptAcks;
+    double totalBytesSent;
     int noDuplicatePackets;
     byte[][] segmentedFile;
     
@@ -55,12 +53,19 @@ public class TransportLayerNew {
 	public TransportLayerNew(AppLayerObject appObject, int senderPort, int receiverPort) {
 		this.m_networkLayer = new NetworkLayerNew(appObject,senderPort, receiverPort);
 		this.m_networkLayer.setTransportLayer(this);
-		this.windowSize = appObject.getWindowSize();
+		initializeCounters();
 	}
 
 	public void dataLinkSend(final FileInputStream tobeSentStream, int protMode) throws Exception {
 		threadsForSender(tobeSentStream,protMode);
+		this.m_networkLayer.getM_socket().close();
 	}
+	 private void initializeCounters() {
+		 numberOfTimeouts = 0;
+		 totalPacketsSent = 0;
+		 totalBytesSent = 0;
+		 noDuplicatePackets = 0;
+	 }
 
 	// API provided to upper layer (application layer) to
 	// receive a message. 
@@ -140,34 +145,30 @@ public class TransportLayerNew {
 				}
 			}
 		}else {
-			  	 int totalPacketsReceived = 0;
 		         int packetsDamaged = 0;
-		         int noDuplicatePackets = 0;
-		         
 		         List<byte[]> segmentedFile = new ArrayList<byte[]>();
 		         List<Integer>segmentedFileOrder = new ArrayList<Integer>();
 		         startWindowReceiver = 0;
-		         windowReceiver = new int[WINDOW_SIZE];
+		         windowReceiver = new int[windowSize];
 		         Arrays.fill(windowReceiver, NAK);
 		         while(true){
 		         	//receive packet
 		            PacketData pkt = receiveFromNetworkLayer();
 		            if(pkt.getType() == 2)
 		            	break;
-		            totalPacketsReceived++;
 		            if (pkt.getType() != 3) {
 		               int packetSeqNum = pkt.getSeqNum();
 					if (!segmentedFileOrder.contains(packetSeqNum)) {
 						segmentedFileOrder.add(packetSeqNum);
 						segmentedFile.add(pkt.getData());
+							ackPacket(packetSeqNum);
+			               sendAcknowledgement();
+			               adjustWindow(packetSeqNum);
+			               System.out.println("Debug:ACK sent for Packet with Seq [" +packetSeqNum + "]");
 					}else {
-						noDuplicatePackets++;
 						continue;
 					}
-		               ackPacket(packetSeqNum);
-		               sendAcknowledgement();
-		               adjustWindow(packetSeqNum);
-		               System.out.println("Debug:ACK sent for Packet with Seq [" +packetSeqNum + "] Receiver Window - "+windowReceiver);
+		               
 		            }
 		            else{
 		            	System.out.println("Packet with Sequence Number "+pkt.getSeqNum()+" is corrupt. Do nothing wait for timeout");
@@ -176,9 +177,9 @@ public class TransportLayerNew {
 		         }
 		         reassembleFile(segmentedFile, segmentedFileOrder);
 		         System.out.println("TOTAL # OF PACKETS CORRUPTED: " + packetsDamaged);
-		         System.out.println("TOTAL # OF ACKS DROPPED: " + m_networkLayer.getNumberPacketDrops());
-		         System.out.println("TOTAL # OF DUPLICATE PACKETS RECEIVED: " + noDuplicatePackets);
+		      
 		}
+		this.m_networkLayer.getM_socket().close();
 	}
 	
 	
@@ -349,7 +350,7 @@ public class TransportLayerNew {
 		startWindowSender = 0;
 
 		// send first window of packets
-		for (int i = 0; i < WINDOW_SIZE; i++) {
+		for (int i = 0; i < windowSize; i++) {
 			if (i < segmentedFile.length) {
 				nextSeqNumSender = i %32;
 				sendPacket(nextSeqNumSender, segmentedFile[i]);
@@ -368,7 +369,7 @@ public class TransportLayerNew {
 			int windowMoved = adjustWindow();
 			// send packets that are now in window
 			for (int i = windowMoved; i > 0; i--) {
-				sendPacket(startWindowSender + WINDOW_SIZE - i, segmentedFile[startWindowSender + WINDOW_SIZE - i]);
+				sendPacket(startWindowSender + windowSize - i, segmentedFile[startWindowSender + windowSize - i]);
 			}
 			// check if all packets are acked and we are done
 			if (allPacketsAcked()) {
@@ -388,12 +389,12 @@ public class TransportLayerNew {
 		}
 	}
 	
-	private static void ackPackets(PacketData pkt){	
+	private  void ackPackets(PacketData pkt){	
         int seq = pkt.getSeqNum();
         String packetString = new String(pkt.getData());
         if(packetString.contains("Window")) {
         int index = packetString.indexOf("Window: ")+("Window: ".length());
-        for(int i = seq; i < seq+WINDOW_SIZE; i++){
+        for(int i = seq; i < seq+windowSize; i++){
            int ack = Integer.parseInt(packetString.substring(index, index+1).trim());
            if(ack == ACK){
               windowSender[i] = ACK;
@@ -421,11 +422,11 @@ public class TransportLayerNew {
          return allAcked;
       }
       
-      private static int adjustWindow() throws Exception{
+      private int adjustWindow() throws Exception{
          int windowMoved = 0;
          while(true){
             if(windowSender[startWindowSender] == ACK){
-               if(startWindowSender+WINDOW_SIZE < windowSender.length){
+               if(startWindowSender+windowSize < windowSender.length){
                   startWindowSender++;
                   windowMoved++;
                }
@@ -492,10 +493,10 @@ public class TransportLayerNew {
 	}
 	
 	
-    private static void ackPacket(int seqNum){
+    private  void ackPacket(int seqNum){
       	//ACK packet in window
          if(startWindowReceiver <= seqNum){
-            if(seqNum-startWindowReceiver < WINDOW_SIZE)
+            if(seqNum-startWindowReceiver < windowSize)
                windowReceiver[seqNum-startWindowReceiver] = ACK;
          }
       }
@@ -504,10 +505,10 @@ public class TransportLayerNew {
       	//shift window
          while(true){
             if(windowReceiver[0] == ACK){
-               for(int i = 0; i < WINDOW_SIZE-1; i++){
+               for(int i = 0; i < windowSize-1; i++){
                   windowReceiver[i] = windowReceiver[i+1];
                }
-               windowReceiver[WINDOW_SIZE-1] = NAK;
+               windowReceiver[windowSize-1] = NAK;
                startWindowReceiver++;
             }
             else
@@ -517,7 +518,7 @@ public class TransportLayerNew {
       
 	private String sendAcknowledgement() throws Exception {
 		String ack = ("Seq: " + startWindowReceiver + "  Window: ");
-		for (int i = 0; i < WINDOW_SIZE; i++) {
+		for (int i = 0; i < windowSize; i++) {
 			ack += windowReceiver[i];
 		}
 		ack += "\r\n";

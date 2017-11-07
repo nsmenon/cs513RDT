@@ -22,12 +22,14 @@ public class NetworkLayerNew {
 	private int packetCorruptionProbability;
 	private int packetDropProbability;
 	private int numberPacketDrops = 0;
+	private Random rand;
 	
 	public NetworkLayerNew(AppLayerObject appObject,int localport, int remoteport) {
 		m_localport = localport;
 		m_remoteport = remoteport;
 		this.packetCorruptionProbability = appObject.getPacketCorruptionProbability();
 		this.packetDropProbability = appObject.getPacketDropProbability();
+		rand = new Random();
 		try {
 			m_IPAddress = InetAddress.getByName("localhost");
 			m_socket = new DatagramSocket(localport);
@@ -36,6 +38,14 @@ public class NetworkLayerNew {
 		}
 	}
 	
+	public DatagramSocket getM_socket() {
+		return m_socket;
+	}
+
+	public void setM_socket(DatagramSocket m_socket) {
+		this.m_socket = m_socket;
+	}
+
 	public void setTransportLayer(TransportLayerNew tl) {
 		m_transportLayer = tl;
 	}
@@ -47,10 +57,12 @@ public class NetworkLayerNew {
 	public void send(PacketData packet, boolean noLoss){
 		if (!noLoss) {
 			// simulate random loss of packet and packet corruption
-			Random rand = new Random();
+			
 			int randnumForCorruption = rand.nextInt(100); // range 0-10
 			int randnumForPacketDrop = rand.nextInt(100); // range 0-10
+			
 			if (randnumForCorruption < packetCorruptionProbability) {
+				System.out.println("** Drop Corrupt Number ***"+randnumForCorruption);
 				try {
 					PacketData pkt = PacketData.createCorruptPacket(packet.getSeqNum(), "ASFGGHHJBNHJ");
 					DatagramPacket p = new DatagramPacket(pkt.getUDPdata(), pkt.getUDPdata().length, m_IPAddress, m_remoteport);
@@ -61,7 +73,7 @@ public class NetworkLayerNew {
 				}
 			}
 			if (randnumForPacketDrop < packetDropProbability) {
-				System.out.println("Packet Dropped "+numberPacketDrops);
+				System.out.println("** Drop Random Number ***"+randnumForPacketDrop);
 				numberPacketDrops++;
 				return;
 			}
