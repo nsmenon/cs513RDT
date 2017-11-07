@@ -1,11 +1,11 @@
 # cs513RDT
 
 
-1) Install java jdk - http://www.oracle.com/technetwork/java/javase/downloads/index.html
-2) Set environment variables 
+1) Install java jdk - http://www.oracle.com/technetwork/java/javase/downloads/jdk9-downloads-3848520.html for Windows or Linux as needed
+2) Set environment variables for jdk in windows 
 3) Go the project directory and run the make the file 
 4) On linux terminal run - make
-5) On Windows terminal run - make.bat
+5) On Windows terminal run - .\makefile.bat
 6) Open 2 terminals
 7) Run the java file - java AppLayerMenu on both the terminals
 8) Select the Protocol to be used  - 0 : GoBackN, 1 : SR
