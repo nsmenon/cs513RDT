@@ -12,8 +12,8 @@
 9) Repeat the same on the other terminal
 10) Enter 0 to receive on one terminal 
 11) Enter 1 to send on the other terminal
-12) Enter the loss rate 
-13) Enter corruption rate
+12) Enter the packet loss rate (0 - 100) %
+13) Enter corruption rate (0 - 100) %
 14) Enter the filename on the send window terminal
 15) Repeat  - 10 and 11 on the other terminal
 16) Once the data transfer is completed, you can repeat the same steps for the other protocol
