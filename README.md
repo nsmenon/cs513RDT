@@ -3,18 +3,20 @@
 
 1) Install java jdk - http://www.oracle.com/technetwork/java/javase/downloads/index.html
 2) Set environment variables 
-3) Go the project directory and run the make the file - make
-4) Open 2 terminals
-5) Run the java file - java AppLayerMenu on both the terminals
-6) Select the Protocol to be used  - 0 : GoBackN, 1 : SR
-7) Repeat the same on the other terminal
-8) Enter 0 to receive on one terminal 
-9) Enter 1 to send on the other terminal
-10) Enter the loss rate 
-11) Enter corruption rate
-12) Enter the filename on the send window terminal
-13) Repeat  - 10 and 11 on the other terminal
-14) Once the data transfer is completed, you can repeat the same steps for the other protocol
+3) Go the project directory and run the make the file 
+4) On linux terminal run - make
+5) On Windows terminal run - make.bat
+6) Open 2 terminals
+7) Run the java file - java AppLayerMenu on both the terminals
+8) Select the Protocol to be used  - 0 : GoBackN, 1 : SR
+9) Repeat the same on the other terminal
+10) Enter 0 to receive on one terminal 
+11) Enter 1 to send on the other terminal
+12) Enter the loss rate 
+13) Enter corruption rate
+14) Enter the filename on the send window terminal
+15) Repeat  - 10 and 11 on the other terminal
+16) Once the data transfer is completed, you can repeat the same steps for the other protocol
 
 
 Please Note: The Acknowledgement loss and Ackowledgment corruption is not implemented for SR protocol.
